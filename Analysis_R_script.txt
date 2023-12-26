@@ -1,0 +1,104 @@
+#Importing relevent Libraries:
+library(tidyverse)
+
+library(ggplot2)
+library(ggplot2)
+import spacy
+from wordcloud import WordCloud
+import nltk
+from textblob import TextBlob
+library(lubridate)
+from collections import Counter
+library(stringr)
+
+# Load the datasets (update the file paths as necessary)
+rental_price_data = read.csv('Canadian housing rental price.csv')
+housing_supply_data = read.csv('Canadian_housing_supply.csv')
+
+
+# !python -m spacy download en_core_web_sm
+nlp = spacy.load('en_core_web_sm')
+
+# Apply NLP to each tweet
+docs = housing_supply_data['Tweets'].apply(nlp)
+
+word_frequencies = Counter()
+
+for doc in docs:
+    for token in doc:
+        # Process words that are not stop words, punctuation, or whitespace
+        if not token.is_stop and not token.is_punct and not token.is_space:
+            word_frequencies[token.text.lower()] += 1  # Using lower case for consistency
+
+
+# Create a DataFrame from the word frequencies
+df = pd.DataFrame(word_frequencies.items(), columns=['Word', 'Frequency'])
+
+# Sort by frequency and filter
+df_filtered = df.query("Frequency >= 25").sort_values(by='Frequency', ascending=False)
+
+# Display the top 10 words
+df_filtered.head(10)
+
+# Generate a word cloud from the filtered words
+word_dict = dict(zip(df_filtered['Word'], df_filtered['Frequency']))
+wordcloud = WordCloud(width=800, height=400, background_color='white', colormap='Blues', max_font_size=150, min_font_size=10).generate_from_frequencies(word_dict)
+
+# Plot the word cloud
+plt.figure(figsize=(10, 6))
+plt.imshow(wordcloud, interpolation='bilinear')
+plt.axis('off')
+
+
+# Create a bar plot for the top N most frequent words
+top_n = 40
+top_words = df_filtered.head(top_n)
+
+plt.figure(figsize=(18, 6))
+plt.bar(top_words['Word'], top_words['Frequency'], color='skyblue')
+plt.xlabel('Words', fontsize=12)
+plt.ylabel('Frequency', fontsize=12)
+plt.xticks(rotation=45, fontsize=10)
+plt.title('Top 40 Most Frequent Words in Tweets (Frequency >= 25)', fontsize=14)
+
+
+all_tweets = ' '.join(housing_supply_data['Tweets'].tolist())
+
+
+# Tokenization
+nltk.download('punkt')
+sentences = nltk.sent_tokenize(all_tweets)
+
+polarity_scores = []
+
+for sentence in sentences:
+    blob = TextBlob(sentence)
+    polarity = blob.sentiment.polarity
+    polarity_scores.append(polarity)
+
+print("Average polarity score:", np.mean(polarity_scores))
+
+sns.kdeplot(polarity_scores, fill=True)
+plt.xlabel('Polarity Score')
+plt.ylabel('Density')
+plt.title('Density Plot of Polarity Scores')
+
+
+
+# Subjective Score
+subjectivity_scores = []
+
+for sentence in sentences:
+    blob = TextBlob(sentence)
+    subjectivity = blob.sentiment.subjectivity
+    subjectivity_scores.append(subjectivity)
+
+print("Average subjectivity score:", np.mean(subjectivity_scores))
+
+sns.kdeplot(subjectivity_scores, fill=True)
+plt.xlabel('Subjectivity Score')
+plt.ylabel('Density')
+plt.title('Density Plot of Subjectivity Scores')
+
+
+
